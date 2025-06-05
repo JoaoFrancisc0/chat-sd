@@ -8,3 +8,8 @@ def create_message(sender_id: str, content: str) -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "content": content,
     }
+
+
+def message_to_dict(msg: dict) -> dict:
+    """Retorna a representação em dicionário (identidade, já é dict)."""
+    return msg
