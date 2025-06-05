@@ -23,3 +23,18 @@ def create_file_transfer(sender_id: str, filename: str, data_bytes: bytes, chunk
             "data": chunk_data.hex(),  # converte bytes para hex para JSON
         })
     return chunks
+
+
+def file_dict_to_chunks(data: dict) -> dict:
+    """Valida um dicionário de chunk de arquivo e retorna os campos."""
+    if data.get("type") != "file":
+        raise ValueError(f"Tipo inesperado: {data.get('type')}")
+    return {
+        "sender_id": data["sender_id"],
+        "timestamp": data["timestamp"],
+        "filename": data["filename"],
+        "filesize": data["filesize"],
+        "chunk_index": data["chunk_index"],
+        "total_chunks": data["total_chunks"],
+        "data": bytes.fromhex(data["data"]),
+    }
