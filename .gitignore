@@ -1,2 +1,61 @@
 .env
 settings.py
+
+# Environment variables and sensitive configuration
+.env
+settings.py
+config/settings.py
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Data and storage
+data/
+*/data/node*/
+
+# Logs
+logs/
+*.log
+log.txt
+
+# Temporary files
+temp/
+tmp/
+.temp/
+.tmp/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Local development
+local_settings.py
+docker-compose.override.yml
