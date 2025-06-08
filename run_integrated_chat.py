@@ -5,28 +5,30 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Importar os módulos diretamente
-from app.storage.database_node import DatabaseNode
+from app.storage.sqlite_database_node import SQLiteDatabaseNode
 from app.storage.cluster_coordinator import ClusterCoordinator
 from app.storage.storage_api import StorageAPI
 from app.chat.Servidor import ServidorChat
+from config.sqlite_config import SQLITE_CONFIG
 
-# Resto do código permanece igual
+# Ensure data directory exists
+os.makedirs(SQLITE_CONFIG['db_dir'], exist_ok=True)
+
 def create_storage_system():
-    """Configura e retorna o sistema de storage distribuído"""
-    print("[*] Inicializando sistema de storage distribuído...")
+    """Configura e retorna o sistema de storage distribuído com SQLite"""
+    print("[*] Inicializando sistema de storage distribuído com SQLite...")
     
-    # Criar nós de database
-    node1 = DatabaseNode(node_id="node1", storage_path="./data/node1")
-    node2 = DatabaseNode(node_id="node2", storage_path="./data/node2")
-    node3 = DatabaseNode(node_id="node3", storage_path="./data/node3")
-    
+    # Criar nós de database usando SQLite
+    node1 = SQLiteDatabaseNode(node_id="node1", db_file=SQLITE_CONFIG['node1_db'])
+    node2 = SQLiteDatabaseNode(node_id="node2", db_file=SQLITE_CONFIG['node2_db'])
+    node3 = SQLiteDatabaseNode(node_id="node3", db_file=SQLITE_CONFIG['node3_db'])
     
     # Conectar os nós entre si
     node1.connect_to_node(node2)
     node2.connect_to_node(node3)
     node1.connect_to_node(node3)
     
-    print(f"[+] Criados 3 nós de storage: {node1.node_id}, {node2.node_id}, {node3.node_id}")
+    print(f"[+] Criados 3 nós de storage SQLite: {node1.node_id}, {node2.node_id}, {node3.node_id}")
     
     # Criar coordenador de cluster
     coordinator = ClusterCoordinator()
@@ -44,19 +46,14 @@ def create_storage_system():
 
 def main():
     """Função principal que inicia o sistema integrado"""
-    # Garantir que os diretórios de dados existam
-    os.makedirs("./data/node1", exist_ok=True)
-    os.makedirs("./data/node2", exist_ok=True)
-    os.makedirs("./data/node3", exist_ok=True)
-    
-    # Inicializar o sistema de storage
+    # Inicializar o sistema de storage com SQLite
     storage_api = create_storage_system()
     
     # Configurar e iniciar o servidor de chat
     host = '0.0.0.0'  # Aceita conexões de qualquer IP
     port = 55555      # Porta padrão
     
-    print(f"[*] Iniciando servidor de chat em {host}:{port} com storage integrado...")
+    print(f"[*] Iniciando servidor de chat em {host}:{port} com storage SQLite integrado...")
     chat_server = ServidorChat(host=host, port=port, storage_api=storage_api)
     
     # Iniciar o servidor (este método bloqueia a execução)
