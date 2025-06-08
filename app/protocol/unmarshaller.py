@@ -1,5 +1,5 @@
-from message import dict_to_message
-from file_transfer import file_dict_to_chunks
+from app.protocol.message import dict_to_message
+from app.protocol.file_transfer import file_dict_to_chunks
 from . import json
 
 def unmarshall(payload: bytes) -> dict:

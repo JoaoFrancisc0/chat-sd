@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from app.storage.sqlite_database_node import SQLiteDatabaseNode
 from app.storage.cluster_coordinator import ClusterCoordinator
 from app.storage.storage_api import StorageAPI
-from app.chat.Servidor import ServidorChat
+from app.chat.servidor import ServidorChat
 from config.sqlite_config import SQLITE_CONFIG
 
 # Ensure data directory exists

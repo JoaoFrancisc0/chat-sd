@@ -1,8 +1,11 @@
 import socket
 import threading
-import json
 import uuid
 from datetime import datetime
+
+# Importa o protocolo
+from app.protocol.marshaller import marshall_message
+from app.protocol.unmarshaller import unmarshall
 
 class ServidorChat:
     """
@@ -35,38 +38,37 @@ class ServidorChat:
             mensagem (bytes): A mensagem a ser transmitida.
             conexao_cliente (socket): O socket do cliente que enviou a mensagem.
         """
-        # Primeiro, armazena a mensagem no storage se disponível
+        # Decodifica e desserializa a mensagem recebida
+        try:
+            msg_dict = unmarshall(mensagem)
+        except Exception as e:
+            print(f"[ERRO] Falha ao desserializar mensagem: {e}")
+            return
+
+        # Armazena no storage se disponível
         if self.storage_api:
             try:
-                # Decodifica a mensagem
-                msg_text = mensagem.decode('utf-8')
-                
-                # Cria um ID único para a mensagem
                 msg_id = str(uuid.uuid4())
-                
-                # Prepara dados para armazenamento
                 message_data = {
                     "id": msg_id,
-                    "content": msg_text,
+                    "content": msg_dict.get("content", ""),
                     "timestamp": datetime.now().isoformat(),
                     "sender": self.usuario_por_socket.get(conexao_cliente, "Desconhecido")
                 }
-                
-                # Armazena no storage distribuído
                 self.storage_api.create(message_data)
                 print(f"[*] Mensagem armazenada no storage com ID: {msg_id}")
             except Exception as e:
                 print(f"[ERRO] Falha ao armazenar mensagem: {e}")
-        
-        # Depois, transmite a mensagem para todos os clientes conectados
+
+        # Re-serializa a mensagem para enviar aos outros clientes
+        mensagem_bytes = marshall_message(msg_dict)
+
         with self.lock:
             for cliente in self.clientes_conectados:
-                # Verifica se o cliente não é o remetente para evitar que ele receba sua própria mensagem
                 if cliente != conexao_cliente:
                     try:
-                        cliente.send(mensagem)
+                        cliente.send(mensagem_bytes)
                     except socket.error:
-                        # Em caso de erro (ex: cliente desconectado), remove-o da lista
                         self.remover_cliente(cliente)
 
     def remover_cliente(self, cliente_socket):
@@ -103,28 +105,27 @@ class ServidorChat:
 
         while True:
             try:
-                # Recebe a mensagem do cliente (o tamanho do buffer pode ser ajustado)
                 mensagem = conexao_cliente.recv(4096)
                 if mensagem:
-                    msg_text = mensagem.decode('utf-8')
-                    print(f"[*] Mensagem recebida de {endereco_cliente[0]}: {msg_text}")
-                    
+                    try:
+                        msg_dict = unmarshall(mensagem)
+                        print(f"[*] Mensagem recebida de {endereco_cliente[0]}: {msg_dict.get('content', '')}")
+                    except Exception as e:
+                        print(f"[ERRO] Mensagem inválida recebida: {e}")
+                        continue
+
                     # Extrai nome de usuário da primeira mensagem
                     if conexao_cliente not in self.usuario_por_socket:
-                        # Processa primeira mensagem para extrair usuário
-                        if msg_text.startswith("(") and "entrou no chat" in msg_text:
-                            usuario = msg_text.split("(")[1].split(" entrou no chat")[0]
+                        if msg_dict.get("type") == "text" and "entrou no chat" in msg_dict.get("content", ""):
+                            usuario = msg_dict.get("sender_id", "Desconhecido")
                             self.usuario_por_socket[conexao_cliente] = usuario
                             print(f"[*] Usuário identificado: {usuario}")
-                    
-                    # Retransmite a mensagem para os outros clientes
+
                     self.transmitir_mensagem(mensagem, conexao_cliente)
                 else:
-                    # Se não receber dados, o cliente se desconectou
                     self.remover_cliente(conexao_cliente)
                     break
             except socket.error:
-                # Se ocorrer um erro, remove o cliente e encerra o loop
                 with self.lock:
                     self.remover_cliente(conexao_cliente)
                 break
@@ -141,45 +142,60 @@ class ServidorChat:
             return
             
         try:
-            # Enviar mensagem informativa
-            conexao_cliente.send("[Sistema] Carregando histórico de mensagens...\n".encode('utf-8'))
+            conexao_cliente.send(marshall_message({
+                "type": "text",
+                "sender_id": "Sistema",
+                "timestamp": datetime.now().isoformat(),
+                "content": "[Sistema] Carregando histórico de mensagens..."
+            }))
         
-            # Buscar as mensagens armazenadas, ordenadas por timestamp (mais recentes primeiro)
             mensagens = self.storage_api.list_records(limit=limite)
             
             if not mensagens:
-                conexao_cliente.send("[Sistema] Nenhuma mensagem anterior encontrada.\n".encode('utf-8'))
+                conexao_cliente.send(marshall_message({
+                    "type": "text",
+                    "sender_id": "Sistema",
+                    "timestamp": datetime.now().isoformat(),
+                    "content": "[Sistema] Nenhuma mensagem anterior encontrada."
+                }))
                 return
                 
-            # Enviar cabeçalho do histórico
-            conexao_cliente.send(f"[Sistema] Exibindo as últimas {len(mensagens)} mensagens:\n".encode('utf-8'))
+            conexao_cliente.send(marshall_message({
+                "type": "text",
+                "sender_id": "Sistema",
+                "timestamp": datetime.now().isoformat(),
+                "content": f"[Sistema] Exibindo as últimas {len(mensagens)} mensagens:"
+            }))
             
-            # Ordenar mensagens por timestamp (da mais antiga para a mais recente)
             mensagens.sort(key=lambda x: x.get('timestamp', ''))
             
-            # Enviar cada mensagem do histórico
             for msg in mensagens:
                 try:
-                    # Formatar mensagem para exibição
                     sender = msg.get('sender', 'Desconhecido')
                     content = msg.get('content', '')
-                    
-                    # Se content já incluir o sender (como em "Usuario: texto"), usar diretamente
-                    if ': ' in content and not content.startswith('[Sistema]'):
-                        formatted_msg = f"{content}\n"
-                    else:
-                        formatted_msg = f"{sender}: {content}\n"
-                    
-                    conexao_cliente.send(formatted_msg.encode('utf-8'))
+                    conexao_cliente.send(marshall_message({
+                        "type": "text",
+                        "sender_id": sender,
+                        "timestamp": msg.get('timestamp', ''),
+                        "content": content
+                    }))
                 except Exception as e:
                     print(f"[ERRO] Erro ao enviar mensagem do histórico: {e}")
             
-            # Enviar separador após o histórico
-            conexao_cliente.send("[Sistema] Fim do histórico. Você está conectado ao chat.\n".encode('utf-8'))
-            
+            conexao_cliente.send(marshall_message({
+                "type": "text",
+                "sender_id": "Sistema",
+                "timestamp": datetime.now().isoformat(),
+                "content": "[Sistema] Fim do histórico. Você está conectado ao chat."
+            }))
         except Exception as e:
             print(f"[ERRO] Falha ao recuperar histórico: {e}")
-            conexao_cliente.send("[Sistema] Erro ao carregar histórico de mensagens.\n".encode('utf-8'))
+            conexao_cliente.send(marshall_message({
+                "type": "text",
+                "sender_id": "Sistema",
+                "timestamp": datetime.now().isoformat(),
+                "content": "[Sistema] Erro ao carregar histórico de mensagens."
+            }))
 
     def iniciar_servidor(self):
         """

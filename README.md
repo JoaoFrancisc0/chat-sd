@@ -58,11 +58,11 @@ chat-sd
 
 1. Start the server:
    ```
-   python app/main.py
+   python run_integrated_chat.py
    ```
 2. Connect a client:
    ```
-   python app/chat/Cliente.py
+   python -m app.chat.cliente
    ```
 
 ## Configuration

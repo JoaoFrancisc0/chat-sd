@@ -1,4 +1,4 @@
-from message import message_to_dict
+from app.protocol.message import message_to_dict
 from . import json
 
 def marshall_message(msg: dict) -> bytes:

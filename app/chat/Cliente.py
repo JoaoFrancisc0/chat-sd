@@ -2,6 +2,10 @@
 import socket
 import threading
 
+# Importa o protocolo
+from ..protocol.marshaller import marshall_message
+from ..protocol.unmarshaller import unmarshall
+
 class ClienteChat:
     """
     Classe que representa o cliente do chat.
@@ -32,9 +36,18 @@ class ClienteChat:
                     print("\n[!] Conexão com o servidor perdida.")
                     self.cliente_socket.close()
                     break
-                
-                # Decodifica e imprime a mensagem
-                print(mensagem.decode('utf-8'))
+                try:
+                    msg_dict = unmarshall(mensagem)
+                    # Exibe a mensagem formatada
+                    if msg_dict.get("type") == "text":
+                        sender = msg_dict.get("sender_id", "Desconhecido")
+                        content = msg_dict.get("content", "")
+                        if sender == "Sistema":
+                            print(content)
+                        else:
+                            print(f"{sender}: {content}")
+                except Exception as e:
+                    print(f"[ERRO] Mensagem inválida recebida: {e}")
             except ConnectionAbortedError:
                 break
             except Exception as e:
@@ -47,8 +60,13 @@ class ClienteChat:
         Função executada na thread principal para enviar mensagens do usuário.
         """
         # A primeira mensagem enviada será o nome do usuário
-        mensagem_inicial = f"({self.nome_usuario} entrou no chat)"
-        self.cliente_socket.send(mensagem_inicial.encode('utf-8'))
+        mensagem_inicial = {
+            "type": "text",
+            "sender_id": self.nome_usuario,
+            "timestamp": "",
+            "content": f"({self.nome_usuario} entrou no chat)"
+        }
+        self.cliente_socket.send(marshall_message(mensagem_inicial))
 
         while True:
             try:
@@ -62,8 +80,13 @@ class ClienteChat:
                     break
                 
                 # Formata a mensagem com o nome do usuário e envia
-                mensagem_completa = f"{self.nome_usuario}: {texto_mensagem}"
-                self.cliente_socket.send(mensagem_completa.encode('utf-8'))
+                mensagem_completa = {
+                    "type": "text",
+                    "sender_id": self.nome_usuario,
+                    "timestamp": "",
+                    "content": texto_mensagem
+                }
+                self.cliente_socket.send(marshall_message(mensagem_completa))
             except (EOFError, KeyboardInterrupt):
                 # Lida com Ctrl+D ou Ctrl+C para sair
                 print("\n[!] Desconectando...")
