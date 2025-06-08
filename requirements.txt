@@ -1,6 +1,4 @@
 Flask
 pymongo
 requests
-threading
-json
-```
+mysql-connector-python
