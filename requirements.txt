@@ -1,0 +1,6 @@
+Flask
+pymongo
+requests
+threading
+json
+```
