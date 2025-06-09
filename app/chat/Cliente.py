@@ -5,6 +5,7 @@ import threading
 # Importa o protocolo
 from ..protocol.marshaller import marshall_message
 from ..protocol.unmarshaller import unmarshall
+from ..protocol.message import create_message
 
 class ClienteChat:
     """
@@ -46,26 +47,26 @@ class ClienteChat:
                             print(content)
                         else:
                             print(f"{sender}: {content}")
+
                 except Exception as e:
                     print(f"[ERRO] Mensagem inválida recebida: {e}")
+
             except ConnectionAbortedError:
                 break
+
             except Exception as e:
                 print(f"[ERRO] Erro ao receber mensagem: {e}")
                 self.cliente_socket.close()
                 break
+
 
     def enviar_mensagens(self):
         """
         Função executada na thread principal para enviar mensagens do usuário.
         """
         # A primeira mensagem enviada será o nome do usuário
-        mensagem_inicial = {
-            "type": "text",
-            "sender_id": self.nome_usuario,
-            "timestamp": "",
-            "content": f"({self.nome_usuario} entrou no chat)"
-        }
+        mensagem_inicial = create_message(sender_id=self.nome_usuario, content=f"({self.nome_usuario} entrou no chat)")
+
         self.cliente_socket.send(marshall_message(mensagem_inicial))
 
         while True:
@@ -80,19 +81,17 @@ class ClienteChat:
                     break
                 
                 # Formata a mensagem com o nome do usuário e envia
-                mensagem_completa = {
-                    "type": "text",
-                    "sender_id": self.nome_usuario,
-                    "timestamp": "",
-                    "content": texto_mensagem
-                }
+                mensagem_completa = create_message(sender_id=self.nome_usuario, content=texto_mensagem)
+
                 self.cliente_socket.send(marshall_message(mensagem_completa))
+
             except (EOFError, KeyboardInterrupt):
                 # Lida com Ctrl+D ou Ctrl+C para sair
                 print("\n[!] Desconectando...")
                 self.cliente_socket.close()
                 break
             except Exception as e:
+
                 print(f"[ERRO] Erro ao enviar mensagem: {e}")
                 self.cliente_socket.close()
                 break
@@ -110,6 +109,7 @@ class ClienteChat:
             self.cliente_socket.connect((self.host, self.port))
             print(f"[*] Conectado ao servidor de chat em {self.host}:{self.port}")
             print("Digite 'sair' a qualquer momento para se desconectar.")
+
         except ConnectionRefusedError:
             print(f"[ERRO] Não foi possível se conectar ao servidor. Verifique se o servidor está rodando.")
             return
@@ -121,6 +121,7 @@ class ClienteChat:
 
         # Inicia o loop de envio de mensagens na thread principal
         self.enviar_mensagens()
+
 
 if __name__ == '__main__':
     # Se estiver rodando em máquinas diferentes na mesma rede,
