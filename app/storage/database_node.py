@@ -5,16 +5,21 @@ class DatabaseNode:
         self.data_store = {}
         self.connected_nodes = []
 
-    def store_data(self, key, value):
-        self.data_store[key] = value
+    def store_data(self, data):
+        """
+        Armazena um dicionário de mensagem ou chunk de arquivo.
+        O campo 'id' deve ser usado como chave.
+        """
+        key = data.get("id") or data.get("filename") or str(len(self.data_store))
+        self.data_store[key] = data
         return key
 
     def retrieve_data(self, key):
         return self.data_store.get(key, None)
         
-    def update_data(self, key, value):
+    def update_data(self, key, data):
         if key in self.data_store:
-            self.data_store[key] = value
+            self.data_store[key] = data
             return True
         return False
         
@@ -26,47 +31,26 @@ class DatabaseNode:
         
     def list_data(self, filter_criteria=None, limit=50, offset=0):
         """
-        List data matching the given criteria.
-        
-        Args:
-            filter_criteria (dict): Criteria to filter records
-            limit (int): Maximum number of records to return
-            offset (int): Starting position for records
-            
-        Returns:
-            list: Records matching criteria
+        Lista dados (mensagens ou chunks) com base nos critérios.
         """
         results = []
-        
-        # Get all keys in reverse chronological order (assuming IDs or timestamps)
         all_keys = sorted(self.data_store.keys(), reverse=True)
-        
-        # Apply offset
         if offset < len(all_keys):
             all_keys = all_keys[offset:]
         else:
             return []
-            
-        # Apply limit
         all_keys = all_keys[:limit]
-        
-        # Gather data
         for key in all_keys:
             data = self.data_store[key]
-            
-            # Apply filter if specified
             if filter_criteria is not None:
                 match = True
                 for k, v in filter_criteria.items():
                     if k not in data or data[k] != v:
                         match = False
                         break
-                
                 if not match:
                     continue
-            
             results.append(data)
-            
         return results
 
     def connect_to_node(self, other_node):
@@ -78,7 +62,7 @@ class DatabaseNode:
         for node in self.connected_nodes:
             for key, value in node.data_store.items():
                 if key not in self.data_store:
-                    self.store_data(key, value)
+                    self.store_data(value)
 
     def __repr__(self):
         return f"DatabaseNode(node_id={self.node_id}, storage_path={self.storage_path})"

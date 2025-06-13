@@ -1,6 +1,5 @@
 import os
-from chat.Servidor import Servidor
-from chat.Cliente import Cliente
+from chat.servidor import servidor
 from storage.database_node import DatabaseNode
 from storage.replication_manager import ReplicationManager
 from storage.cluster_coordinator import ClusterCoordinator
@@ -38,7 +37,7 @@ def main():
     print("Sistema de storage inicializado com sucesso!")
     
     # Iniciar servidor com storage
-    servidor = Servidor(storage_api=storage_api)
+    servidor = servidor(storage_api=storage_api)
     servidor.start()
 
 if __name__ == "__main__":
