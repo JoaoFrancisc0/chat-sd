@@ -2,6 +2,7 @@ import socket
 import threading
 import uuid
 from datetime import datetime
+import json
 
 # Importa o protocolo
 from app.protocol.marshaller import marshall_message
@@ -12,7 +13,7 @@ class ServidorChat:
     Classe que representa o servidor de chat em grupo.
     Gerencia múltiplas conexões de clientes e retransmite as mensagens para o grupo.
     """
-    def __init__(self, host='0.0.0.0', port=55555, storage_api=None):
+    def __init__(self, name="Servidor.com", host='0.0.0.0', port=55555, storage_api=None, name_server_host='127.0.0.1', name_server_port=50000):
         """
         Inicializa o servidor com o host e a porta especificados.
 
@@ -21,6 +22,7 @@ class ServidorChat:
             port (int): Porta para o servidor escutar.
             storage_api (StorageAPI): API para armazenamento distribuído das mensagens.
         """
+        self.name = name
         self.host = host
         self.port = port
         self.servidor_socket = None
@@ -28,15 +30,27 @@ class ServidorChat:
         self.lock = threading.Lock() # Lock para garantir acesso seguro à lista de clientes
         self.storage_api = storage_api # API para armazenamento distribuído
         self.usuario_por_socket = {} # Mapeia sockets para nomes de usuário
+        self.name_server_host = name_server_host
+        self.name_server_port = name_server_port
+
+    def register_with_name_server(self):
+        """
+        Registra este servidor de chat com o servidor de nomes.
+        """
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.name_server_host, self.name_server_port))
+                request = {'action': 'register', 'name': self.name, 'port': self.port}
+                s.send(json.dumps(request).encode('utf-8'))
+                response = s.recv(1024)
+                print(f"[*] Resposta do Servidor de Nomes: {response.decode('utf-8')}")
+        except Exception as e:
+            print(f"[ERRO] Falha ao registrar com o Servidor de Nomes: {e}")
 
     def transmitir_mensagem(self, mensagem, conexao_cliente):
         """
         Envia uma mensagem para todos os clientes conectados, exceto para o remetente.
         Também armazena a mensagem no sistema de storage distribuído.
-
-        Args:
-            mensagem (bytes): A mensagem a ser transmitida.
-            conexao_cliente (socket): O socket do cliente que enviou a mensagem.
         """
         # Decodifica e desserializa a mensagem recebida
         try:
@@ -201,6 +215,7 @@ class ServidorChat:
         """
         Inicia o servidor, aguardando por conexões de clientes.
         """
+        self.register_with_name_server()
         self.servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.servidor_socket.bind((self.host, self.port))
         self.servidor_socket.listen()
@@ -236,3 +251,7 @@ class ServidorChat:
 
 # Renomear a classe principal para compatibilidade com o main.py
 Servidor = ServidorChat
+
+if __name__ == '__main__':
+    servidor_chat = ServidorChat()
+    servidor_chat.iniciar_servidor()
