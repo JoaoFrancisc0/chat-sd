@@ -53,8 +53,7 @@ class ServidorChat:
                 sender = self.usuario_por_socket.get(conexao_cliente, "Desconhecido")
                 message = msg_dict.get("content", "")
                 message_data = create_message(sender, message)
-                print(self.storage_api, type(self.storage_api))
-                self.storage_api.create(message_data)
+                self.storage_api.create(msg_id, message_data)
                 print(f"[*] Mensagem armazenada no storage com ID: {msg_id}")
             except Exception as e:
                 print(f"[ERRO] Falha ao armazenar mensagem: {e}")

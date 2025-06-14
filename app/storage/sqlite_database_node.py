@@ -37,11 +37,11 @@ class SQLiteDatabaseNode:
     def _get_connection(self):
         return sqlite3.connect(self.db_file)
     
-    def store_data(self, data):
+    def store_data(self, msg_id, data):
         """
         Armazena um dicionário de mensagem ou chunk de arquivo.
         """
-        key = data.get("id") or data.get("filename") or str(datetime.datetime.now().timestamp())
+        key = msg_id or data.get("filename") or str(datetime.datetime.now().timestamp())
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
