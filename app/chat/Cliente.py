@@ -1,29 +1,54 @@
-# cliente.py
 import socket
 import threading
+import json
 
 # Importa o protocolo
-from ..protocol.marshaller import marshall_message
-from ..protocol.unmarshaller import unmarshall
-from ..protocol.message import create_message
+from app.protocol.marshaller import marshall_message
+from app.protocol.unmarshaller import unmarshall
+from app.protocol.message import create_message
 
 class ClienteChat:
     """
     Classe que representa o cliente do chat.
     Conecta-se ao servidor e permite o envio e recebimento de mensagens.
     """
-    def __init__(self, host='127.0.0.1', port=55555):
+    def __init__(self, server_name='Servidor.com', name_server_host='127.0.0.1', name_server_port=50000):
         """
         Inicializa o cliente com o host e a porta do servidor.
 
         Args:
-            host (str): Endereço IP do servidor. '127.0.0.1' é o localhost.
-            port (int): Porta do servidor.
+            server_name (str): O nome do servidor de chat para se conectar.
+            name_server_host (str): Endereço IP do servidor de nomes.
+            name_server_port (int): Porta do servidor de nomes.
         """
-        self.host = host
-        self.port = port
+        self.server_name = server_name
+        self.name_server_host = name_server_host
+        self.name_server_port = name_server_port
+        self.host = None
+        self.port = None
         self.cliente_socket = None
         self.nome_usuario = None
+
+    def lookup_server(self):
+        """
+        Consulta o servidor de nomes para obter o endereço do servidor de chat.
+        """
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.name_server_host, self.name_server_port))
+                request = {'action': 'lookup', 'name': self.server_name}
+                s.send(json.dumps(request).encode('utf-8'))
+                response_data = s.recv(1024)
+                response = json.loads(response_data.decode('utf-8'))
+                if response.get('status') == 'found':
+                    self.host, self.port = response['address']
+                    return True
+                else:
+                    print(f"[ERRO] Servidor '{self.server_name}' não encontrado.")
+                    return False
+        except Exception as e:
+            print(f"[ERRO] Falha ao consultar o Servidor de Nomes: {e}")
+            return False
 
     def receber_mensagens(self):
         """
@@ -94,13 +119,16 @@ class ClienteChat:
         """
         Inicia a conexão com o servidor e as threads de envio/recebimento.
         """
+        if not self.lookup_server():
+            return
+        
         self.nome_usuario = input("Digite seu nome de usuário: ")
         
         # Cria e conecta o socket do cliente
         self.cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.cliente_socket.connect((self.host, self.port))
-            print(f"[*] Conectado ao servidor de chat em {self.host}:{self.port}")
+            print(f"[*] Conectado ao servidor de chat.")
             print("Digite 'sair' a qualquer momento para se desconectar.")
         except ConnectionRefusedError:
             print(f"[ERRO] Não foi possível se conectar ao servidor. Verifique se o servidor está rodando.")
@@ -115,7 +143,7 @@ class ClienteChat:
         self.enviar_mensagens()
 
 if __name__ == '__main__':
-    # Se estiver rodando em máquinas diferentes na mesma rede,
-    # substitua '127.0.0.1' pelo endereço IP da máquina do servidor.
-    cliente = ClienteChat(host='127.0.0.1')
+    # Agora o cliente se conecta usando o nome do servidor
+    server_name_to_connect = input("Digite o nome do servidor (ex: Servidor.com): ")
+    cliente = ClienteChat(server_name=server_name_to_connect)
     cliente.iniciar()
