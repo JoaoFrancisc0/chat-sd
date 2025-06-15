@@ -7,6 +7,7 @@ def create_message(sender_id: str, content: str) -> dict:
         "sender_id": sender_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "content": content,
+        "message_id": "",
     }
 
 
@@ -25,4 +26,5 @@ def dict_to_message(data: dict) -> dict:
         "sender_id": data["sender_id"],
         "timestamp": data["timestamp"],
         "content": data["content"],
+        "message_id": "",
     }

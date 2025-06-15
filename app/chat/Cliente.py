@@ -5,6 +5,7 @@ import json
 # Importa o protocolo
 from app.protocol.marshaller import marshall_message
 from app.protocol.unmarshaller import unmarshall
+from app.protocol.message import create_message
 
 class ClienteChat:
     """
@@ -85,12 +86,8 @@ class ClienteChat:
         Função executada na thread principal para enviar mensagens do usuário.
         """
         # A primeira mensagem enviada será o nome do usuário
-        mensagem_inicial = {
-            "type": "text",
-            "sender_id": self.nome_usuario,
-            "timestamp": "",
-            "content": f"({self.nome_usuario} entrou no chat)"
-        }
+        message = f"({self.nome_usuario} entrou no chat)"
+        mensagem_inicial = create_message(self.nome_usuario, message)
         self.cliente_socket.send(marshall_message(mensagem_inicial))
 
         while True:
@@ -105,12 +102,7 @@ class ClienteChat:
                     break
                 
                 # Formata a mensagem com o nome do usuário e envia
-                mensagem_completa = {
-                    "type": "text",
-                    "sender_id": self.nome_usuario,
-                    "timestamp": "",
-                    "content": texto_mensagem
-                }
+                mensagem_completa = create_message(self.nome_usuario, texto_mensagem)
                 self.cliente_socket.send(marshall_message(mensagem_completa))
             except (EOFError, KeyboardInterrupt):
                 # Lida com Ctrl+D ou Ctrl+C para sair

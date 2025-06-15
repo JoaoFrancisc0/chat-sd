@@ -21,6 +21,7 @@ def create_file_transfer(sender_id: str, filename: str, data_bytes: bytes, chunk
             "chunk_index": idx,
             "total_chunks": total_chunks,
             "data": chunk_data.hex(),  # converte bytes para hex para JSON
+            "message_id": "",
         })
     return chunks
 
@@ -37,4 +38,5 @@ def file_dict_to_chunks(data: dict) -> dict:
         "chunk_index": data["chunk_index"],
         "total_chunks": data["total_chunks"],
         "data": bytes.fromhex(data["data"]),
+        "message_id": "",
     }

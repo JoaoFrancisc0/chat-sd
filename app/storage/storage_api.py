@@ -3,9 +3,9 @@ class StorageAPI:
         self.replication_manager = replication_manager
         self.cluster_coordinator = cluster_coordinator
 
-    def create(self, data):
+    def create(self, message_id, data):
         node = self.cluster_coordinator.get_primary_node()
-        return node.store_data(data["id"], data)  # Passando id como chave e data como valor
+        return node.store_data(message_id, data)  # Passando id como chave e data como valor
 
     def read(self, record_id):
         """Read a record from the distributed database."""
