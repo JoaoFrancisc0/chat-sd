@@ -6,10 +6,6 @@ class DatabaseNode:
         self.connected_nodes = []
 
     def store_data(self, data):
-        """
-        Armazena um dicionário de mensagem ou chunk de arquivo.
-        O campo 'id' deve ser usado como chave.
-        """
         key = data.get("id") or data.get("filename") or str(len(self.data_store))
         self.data_store[key] = data
         return key
@@ -30,9 +26,6 @@ class DatabaseNode:
         return False
         
     def list_data(self, filter_criteria=None, limit=50, offset=0):
-        """
-        Lista dados (mensagens ou chunks) com base nos critérios.
-        """
         results = []
         all_keys = sorted(self.data_store.keys(), reverse=True)
         if offset < len(all_keys):
