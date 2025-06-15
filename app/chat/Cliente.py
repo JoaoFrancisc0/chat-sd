@@ -62,7 +62,7 @@ class ClienteChat:
                             if sender == "Sistema":
                                 print(content)
                             else:
-                                print(f"{sender}: {content}")
+                                print(f"{content}")
                     
                     except ValueError as e:
                         if "desconhecido" in str(e).lower():
