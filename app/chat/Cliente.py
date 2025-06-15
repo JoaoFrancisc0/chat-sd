@@ -2,25 +2,14 @@ import socket
 import threading
 import json
 
-# Importa o protocolo
 from app.protocol.marshaller import marshall_message
 from app.protocol.unmarshaller import unmarshall
+from app.protocol.unmarshaller import unmarshall_with_length
 from app.protocol.message import create_message
 
 class ClienteChat:
-    """
-    Classe que representa o cliente do chat.
-    Conecta-se ao servidor e permite o envio e recebimento de mensagens.
-    """
-    def __init__(self, server_name='Servidor.com', name_server_host='127.0.0.1', name_server_port=50000):
-        """
-        Inicializa o cliente com o host e a porta do servidor.
 
-        Args:
-            server_name (str): O nome do servidor de chat para se conectar.
-            name_server_host (str): Endereço IP do servidor de nomes.
-            name_server_port (int): Porta do servidor de nomes.
-        """
+    def __init__(self, server_name='Servidor.com', name_server_host='127.0.0.1', name_server_port=50000):
         self.server_name = server_name
         self.name_server_host = name_server_host
         self.name_server_port = name_server_port
@@ -30,9 +19,6 @@ class ClienteChat:
         self.nome_usuario = None
 
     def lookup_server(self):
-        """
-        Consulta o servidor de nomes para obter o endereço do servidor de chat.
-        """
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.name_server_host, self.name_server_port))
@@ -51,29 +37,54 @@ class ClienteChat:
             return False
 
     def receber_mensagens(self):
-        """
-        Função executada em uma thread para receber mensagens do servidor.
-        """
+  
+        buffer = b""
+        
         while True:
             try:
-                # Recebe a mensagem do servidor
-                mensagem = self.cliente_socket.recv(4096)
-                if not mensagem:
+                chunk = self.cliente_socket.recv(4096)
+                if not chunk:
                     print("\n[!] Conexão com o servidor perdida.")
                     self.cliente_socket.close()
                     break
-                try:
-                    msg_dict = unmarshall(mensagem)
-                    # Exibe a mensagem formatada
-                    if msg_dict.get("type") == "text":
-                        sender = msg_dict.get("sender_id", "Desconhecido")
-                        content = msg_dict.get("content", "")
-                        if sender == "Sistema":
-                            print(content)
+                    
+                buffer += chunk
+                
+                while buffer:
+                    try:
+                        msg_dict, consumed = unmarshall_with_length(buffer)
+                        
+                        buffer = buffer[consumed:]
+                        
+                        if msg_dict.get("type") == "text":
+                            sender = msg_dict.get("sender_id", "Desconhecido")
+                            content = msg_dict.get("content", "")
+                            if sender == "Sistema":
+                                print(content)
+                            else:
+                                print(f"{sender}: {content}")
+                    
+                    except ValueError as e:
+                        if "desconhecido" in str(e).lower():
+                            print(f"[ERRO] {e}")
+                            buffer = b""
                         else:
-                            print(f"{sender}: {content}")
-                except Exception as e:
-                    print(f"[ERRO] Mensagem inválida recebida: {e}")
+                            print(f"[ERRO] Erro ao processar mensagem: {e}")
+                            break
+                            
+                    except json.JSONDecodeError as e:
+                        if "Expecting value" in str(e) or "Unterminated string" in str(e):
+                            break
+                        else:
+                            print(f"[ERRO] Erro de JSON: {e}")
+                            buffer = b""  
+                            break
+                            
+                    except Exception as e:
+                        print(f"[ERRO] Mensagem inválida recebida: {e}")
+                        buffer = b"" 
+                        break
+                        
             except ConnectionAbortedError:
                 break
             except Exception as e:
