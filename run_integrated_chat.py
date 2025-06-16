@@ -76,7 +76,7 @@ def main():
     )
     health_thread.start()
     
-    host = '0.0.0.0'  # Accept connections from any IP
+    host = '192.168.10.9'  # Accept connections from any IP
     port = 8080       # Higher port to avoid permission issues
     
     print(f"[*] Starting chat server on {host}:{port} with integrated storage...")
