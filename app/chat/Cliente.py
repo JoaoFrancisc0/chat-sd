@@ -9,7 +9,7 @@ from app.protocol.message import create_message
 
 class ClienteChat:
 
-    def __init__(self, server_name='Servidor.com', name_server_host='127.0.0.1', name_server_port=50000):
+    def __init__(self, server_name='Servidor.com', name_server_host='0.0.0.0', name_server_port=50000):
         self.server_name = server_name
         self.name_server_host = name_server_host
         self.name_server_port = name_server_port
@@ -19,8 +19,13 @@ class ClienteChat:
         self.nome_usuario = None
 
     def lookup_server(self):
+        """
+        Look up server address via name server or use direct connection.
+        """
         try:
+            print(f"[*] Consultando o Servidor de Nomes em {self.name_server_host}:{self.name_server_port}...")
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(3)  # Add timeout
                 s.connect((self.name_server_host, self.name_server_port))
                 request = {'action': 'lookup', 'name': self.server_name}
                 s.send(json.dumps(request).encode('utf-8'))
@@ -28,13 +33,24 @@ class ClienteChat:
                 response = json.loads(response_data.decode('utf-8'))
                 if response.get('status') == 'found':
                     self.host, self.port = response['address']
+                    print(f"[+] Servidor encontrado em {self.host}:{self.port}")
                     return True
                 else:
-                    print(f"[ERRO] Servidor '{self.server_name}' não encontrado.")
+                    print(f"[AVISO] Servidor '{self.server_name}' não encontrado no Servidor de Nomes.")
                     return False
+        except socket.timeout:
+            print(f"[AVISO] Tempo limite excedido ao contatar o Servidor de Nomes.")
+        except ConnectionRefusedError:
+            print(f"[AVISO] Servidor de Nomes não está aceitando conexões.")
         except Exception as e:
-            print(f"[ERRO] Falha ao consultar o Servidor de Nomes: {e}")
-            return False
+            print(f"[AVISO] Falha ao consultar o Servidor de Nomes: {e}")
+    
+        # Fallback to direct connection
+        print(f"[*] Tentando conexão direta...")
+        self.host = '192.168.10.9'  # Use your actual IP here
+        self.port = 8080
+        print(f"[*] Usando endereço padrão: {self.host}:{self.port}")
+        return True
 
     def receber_mensagens(self):
   
