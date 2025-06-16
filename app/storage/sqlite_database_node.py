@@ -43,7 +43,6 @@ class SQLiteDatabaseNode:
             return False
             
         try:
-            # Try to open and query the database
             conn = sqlite3.connect(self.db_file)
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM sqlite_master")
