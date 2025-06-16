@@ -1,68 +1,93 @@
 import os
 import sys
+import threading
+import time
 
-# Adicionar o diretório atual ao path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Importar os módulos diretamente
 from app.storage.sqlite_database_node import SQLiteDatabaseNode
 from app.storage.cluster_coordinator import ClusterCoordinator
 from app.storage.storage_api import StorageAPI
+from app.storage.replication_manager import ReplicationManager
 from app.chat.servidor import ServidorChat
-from config.sqlite_config import SQLITE_CONFIG
 
-# Ensure data directory exists
-os.makedirs(SQLITE_CONFIG['db_dir'], exist_ok=True)
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+NODE1_DB = os.path.join(DATA_DIR, 'chat_node1.db')
+NODE2_DB = os.path.join(DATA_DIR, 'chat_node2.db')
+NODE3_DB = os.path.join(DATA_DIR, 'chat_node3.db')
+
+os.makedirs(DATA_DIR, exist_ok=True)
+
+def health_check_thread(storage_api):
+    while True:
+        try:
+            print("\n[*] Running node health check...")
+            storage_api.verify_nodes()
+            
+            if int(time.time()) % 300 < 60: 
+                print("[*] Running full data synchronization...")
+                storage_api.synchronize()
+                
+            print("[*] Health check complete")
+            time.sleep(60)  
+        except Exception as e:
+            print(f"[ERROR] Health check failed: {e}")
+            time.sleep(30) 
 
 def create_storage_system():
-    """Configura e retorna o sistema de storage distribuído com SQLite"""
-    print("[*] Inicializando sistema de storage distribuído com SQLite...")
+    print("[*] Initializing distributed storage system...")
     
-    # Criar nós de database usando SQLite
-    node1 = SQLiteDatabaseNode(node_id="node1", db_file=SQLITE_CONFIG['node1_db'])
-    node2 = SQLiteDatabaseNode(node_id="node2", db_file=SQLITE_CONFIG['node2_db'])
-    node3 = SQLiteDatabaseNode(node_id="node3", db_file=SQLITE_CONFIG['node3_db'])
+    node1 = SQLiteDatabaseNode(node_id="node1", db_file=NODE1_DB)
+    node2 = SQLiteDatabaseNode(node_id="node2", db_file=NODE2_DB)
+    node3 = SQLiteDatabaseNode(node_id="node3", db_file=NODE3_DB)
     
-    # Conectar os nós entre si
     node1.connect_to_node(node2)
     node2.connect_to_node(node3)
     node1.connect_to_node(node3)
     
-    print(f"[+] Criados 3 nós de storage SQLite: {node1.node_id}, {node2.node_id}, {node3.node_id}")
+    print(f"[+] Created 3 SQLite storage nodes")
     
-    # Criar coordenador de cluster
     coordinator = ClusterCoordinator()
     coordinator.add_node(node1)
     coordinator.add_node(node2)
     coordinator.add_node(node3)
     
-    print("[+] Coordenador de cluster inicializado com 3 nós")
+    replication_manager = ReplicationManager([node1, node2, node3])
     
-    # Criar API de Storage
-    storage_api = StorageAPI(replication_manager=None, cluster_coordinator=coordinator)
+    storage_api = StorageAPI(
+        replication_manager=replication_manager,
+        cluster_coordinator=coordinator
+    )
     
-    print("[+] API de Storage inicializada")
+    print("[*] Verifying node health and synchronizing data...")
+    storage_api.verify_nodes()
+    storage_api.synchronize()
+    
+    print("[+] Storage system initialized with replication")
     return storage_api
 
 def main():
-    """Função principal que inicia o sistema integrado"""
-    # Inicializar o sistema de storage com SQLite
     storage_api = create_storage_system()
     
-    # Configurar e iniciar o servidor de chat
-    host = '0.0.0.0'  # Aceita conexões de qualquer IP
-    port = 55555      # Porta padrão
+    health_thread = threading.Thread(
+        target=health_check_thread, 
+        args=(storage_api,),
+        daemon=True
+    )
+    health_thread.start()
     
-    print(f"[*] Iniciando servidor de chat em {host}:{port} com storage SQLite integrado...")
+    host = '0.0.0.0'  # Accept connections from any IP
+    port = 8080       # Higher port to avoid permission issues
+    
+    print(f"[*] Starting chat server on {host}:{port} with integrated storage...")
     chat_server = ServidorChat(host=host, port=port, storage_api=storage_api)
     
-    # Iniciar o servidor (este método bloqueia a execução)
     try:
         chat_server.iniciar_servidor()
     except KeyboardInterrupt:
-        print("\n[!] Servidor encerrado pelo usuário")
+        print("\n[!] Server shutdown by user")
     except Exception as e:
-        print(f"[ERRO] Falha ao iniciar servidor: {e}")
+        print(f"[ERROR] Failed to start server: {e}")
 
 if __name__ == "__main__":
-    main()
+    main() 

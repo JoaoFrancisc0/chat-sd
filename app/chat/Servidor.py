@@ -63,12 +63,27 @@ class ServidorChat:
         # Armazena no storage se disponível
         if self.storage_api:
             try:
-                msg_id = str(uuid.uuid4())
+                msg_id = str(uuid.uuid4())  # Generate unique ID
                 sender = self.usuario_por_socket.get(conexao_cliente, "Desconhecido")
-                message = msg_dict.get("content", "")
-                message_data = create_message(sender, message)
-                self.storage_api.create(msg_id, message_data)
-                print(f"[*] Mensagem armazenada no storage com ID: {msg_id}")
+                timestamp = datetime.now().isoformat()
+                
+                # Prepare message data
+                message_data = {
+                    "id": msg_id,
+                    "sender": sender,
+                    "content": msg_dict.get("content", ""),
+                    "timestamp": timestamp,
+                    "type": "text"
+                }
+                
+                # Store with replication
+                result = self.storage_api.store_message(msg_id, message_data)
+                
+                if result:
+                    print(f"[+] Message {msg_id} replicated to all nodes")
+                else:
+                    print(f"[!] Failed to replicate message {msg_id}")
+                    
             except Exception as e:
                 print(f"[ERRO] Falha ao armazenar mensagem: {e}")
 
@@ -144,49 +159,84 @@ class ServidorChat:
 
     def enviar_historico(self, conexao_cliente, limite=50):
         """
-        Envia as últimas mensagens do histórico para um cliente recém-conectado.
+        Envia o histórico de mensagens para um cliente recém-conectado.
         
         Args:
-            conexao_cliente (socket): Socket do cliente para enviar o histórico
-            limite (int): Número máximo de mensagens a recuperar
+            conexao_cliente: Socket do cliente
+            limite: Número máximo de mensagens a enviar
         """
         if not self.storage_api:
+            # No storage available
+            self._enviar_mensagem_sistema(conexao_cliente, "Histórico de mensagens não disponível.")
             return
             
         try:
-            sender = "Sistema"
-            message = "[Sistema] Carregando histórico de mensagens..."
-            conexao_cliente.send(marshall_message(create_message(sender, message)))
-        
-            mensagens = self.storage_api.list_records(limit=limite)
+            print(f"[*] Enviando histórico de mensagens para cliente (limite: {limite})...")
+            self._enviar_mensagem_sistema(conexao_cliente, "Carregando histórico de mensagens...")
             
-            if not mensagens:
-                message = "[Sistema] Nenhuma mensagem anterior encontrada."
-                conexao_cliente.send(marshall_message(create_message(sender, message)))
+            # First verify nodes are healthy
+            self.storage_api.verify_nodes()
+            
+            # Get messages from storage
+            mensagens = self.storage_api.get_messages(limit=limite)
+            
+            if not mensagens or len(mensagens) == 0:
+                self._enviar_mensagem_sistema(conexao_cliente, "Nenhuma mensagem no histórico.")
                 return
                 
-            message = f"[Sistema] Exibindo as últimas {len(mensagens)} mensagens:"
-            conexao_cliente.send(marshall_message(create_message(sender, message)))
+            # Sort messages by timestamp (oldest first)
+            try:
+                mensagens.sort(key=lambda m: m.get('timestamp', ''), reverse=False)
+            except Exception as e:
+                print(f"[AVISO] Erro ao ordenar mensagens: {e}")
             
-            mensagens.sort(key=lambda x: x.get('timestamp', ''))
-            
+            # Send each message to the client
+            mensagens_enviadas = 0
             for msg in mensagens:
                 try:
+                    # Create a message with the proper format
                     sender = msg.get('sender', 'Desconhecido')
-                    message = msg.get('content', '')
-                    create_message(sender, message)
-                    conexao_cliente.send(marshall_message(create_message(sender, message)))
+                    content = msg.get('content', '')
+                    
+                    history_msg = {
+                        'type': 'text',
+                        'sender_id': sender,
+                        'content': content,
+                        'timestamp': msg.get('timestamp', ''),
+                        'is_history': True
+                    }
+                    
+                    # Send the message
+                    conexao_cliente.send(marshall_message(history_msg))
+                    mensagens_enviadas += 1
+                    
+                    # Small delay to prevent flooding the client
+                    time.sleep(0.01)
+                    
                 except Exception as e:
-                    print(f"[ERRO] Erro ao enviar mensagem do histórico: {e}")
+                    print(f"[ERRO] Falha ao enviar mensagem do histórico: {e}")
             
-            sender = "Sistema"
-            message = "[Sistema] Fim do histórico. Você está conectado ao chat."
-            conexao_cliente.send(marshall_message(create_message(sender, message)))
+            print(f"[+] Histórico enviado: {mensagens_enviadas} mensagens")
+            self._enviar_mensagem_sistema(conexao_cliente, f"Histórico carregado: {mensagens_enviadas} mensagens.")
+            
         except Exception as e:
-            print(f"[ERRO] Falha ao recuperar histórico: {e}")
-            sender = "Sistema"
-            message = "[Sistema] Erro ao carregar histórico de mensagens."
-            conexao_cliente.send(marshall_message(create_message(sender, message)))
+            print(f"[ERRO] Falha ao enviar histórico: {e}")
+            self._enviar_mensagem_sistema(conexao_cliente, "Erro ao carregar histórico de mensagens.")
+
+    def _enviar_mensagem_sistema(self, conexao_cliente, conteudo):
+        """Envia uma mensagem de sistema para um cliente."""
+        try:
+            msg = {
+                'type': 'text',
+                'sender_id': 'Sistema',
+                'content': conteudo,
+                'timestamp': datetime.now().isoformat()
+            }
+            conexao_cliente.send(marshall_message(msg))
+        except Exception as e:
+            print(f"[ERRO] Falha ao enviar mensagem de sistema: {e}")
+
+
 
     def iniciar_servidor(self):
         """
