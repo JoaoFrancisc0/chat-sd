@@ -19,9 +19,6 @@ class ClienteChat:
         self.nome_usuario = None
 
     def lookup_server(self):
-        """
-        Look up server address via name server or use direct connection.
-        """
         try:
             print(f"[*] Consultando o Servidor de Nomes em {self.name_server_host}:{self.name_server_port}...")
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -113,9 +110,6 @@ class ClienteChat:
                 break
 
     def enviar_mensagens(self):
-        """
-        Função executada na thread principal para enviar mensagens do usuário.
-        """
         # A primeira mensagem enviada será o nome do usuário
         message = f"({self.nome_usuario} entrou no chat)"
         mensagem_inicial = create_message(self.nome_usuario, message)
@@ -147,9 +141,6 @@ class ClienteChat:
 
 
     def iniciar(self):
-        """
-        Inicia a conexão com o servidor e as threads de envio/recebimento.
-        """
         if not self.lookup_server():
             return
         

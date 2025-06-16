@@ -1,10 +1,6 @@
 from . import datetime, timezone
 
 def create_file_transfer(sender_id: str, filename: str, data_bytes: bytes, chunk_size: int = 65536) -> list:
-    """
-    Divide um arquivo em chunks de 64kb e retorna uma lista de dicionários,
-    cada um representando um pedaço.
-    """
     total_size = len(data_bytes)
     chunks = []
     total_chunks = (total_size + chunk_size - 1) // chunk_size
@@ -27,7 +23,6 @@ def create_file_transfer(sender_id: str, filename: str, data_bytes: bytes, chunk
 
 
 def file_dict_to_chunks(data: dict) -> dict:
-    """Valida um dicionário de chunk de arquivo e retorna os campos."""
     if data.get("type") != "file":
         raise ValueError(f"Tipo inesperado: {data.get('type')}")
     return {

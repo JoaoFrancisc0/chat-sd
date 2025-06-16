@@ -3,7 +3,6 @@ from app.protocol.file_transfer import file_dict_to_chunks
 from . import json
 
 def unmarshall(payload: bytes) -> dict:
-    """Converte bytes JSON em dicionário com dados de texto ou arquivo."""
     data = json.loads(payload.decode("utf-8"))
     tipo = data.get("type")
     if tipo == "text":

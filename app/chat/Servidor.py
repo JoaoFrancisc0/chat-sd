@@ -3,6 +3,7 @@ import threading
 import uuid
 from datetime import datetime
 import json
+import time
 
 from app.protocol.marshaller import marshall_message
 from app.protocol.unmarshaller import unmarshall
@@ -186,9 +187,6 @@ class ServidorChat:
 
 
     def iniciar_servidor(self):
-        """
-        Inicia o servidor, aguardando por conexões de clientes.
-        """
         self.register_with_name_server()
         self.servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.servidor_socket.bind((self.host, self.port))
