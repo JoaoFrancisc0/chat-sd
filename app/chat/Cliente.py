@@ -59,10 +59,14 @@ class ClienteChat:
                         if msg_dict.get("type") == "text":
                             sender = msg_dict.get("sender_id", "Desconhecido")
                             content = msg_dict.get("content", "")
+                            is_history = msg_dict.get("is_history", False)
+                            
                             if sender == "Sistema":
-                                print(content)
+                                print(f"[Sistema] {content}")
                             else:
-                                print(f"{content}")
+                                # Add [Histórico] prefix for history messages
+                                prefix = "[Histórico] " if is_history else ""
+                                print(f"{prefix}{sender}: {content}")
                     
                     except ValueError as e:
                         if "desconhecido" in str(e).lower():
